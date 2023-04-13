@@ -18,17 +18,45 @@ logger = logging.getLogger(__name__)
 def _filter_by_monitor(
     slos: list[ServiceLevelObjective], monitor_id: int
 ) -> list[ServiceLevelObjective]:
+    if monitor_id < 0:
+        return slos
     return list(filter(lambda slo: monitor_id in getattr(slo, "monitor_ids", []), slos))
 
 
 @click.command(context_settings={"auto_envvar_prefix": "SLOS", "show_default": True})
-@click.option("--monitor-id", "-m", help="Monitor ID to get SLOs related", type=int)
-@click.option("--datadog-api-key", help="Datadog API key", type=str, show_envvar=True)
-@click.option("--datadog-app-key", help="Datadog APP key", type=str, show_envvar=True)
+@click.option(
+    "--monitor-id",
+    "-m",
+    default=-1,
+    help="Monitor ID to get SLOs related. If not set, it returns all the SLOs found.",
+    type=int,
+)
+@click.option(
+    "--datadog-api-key",
+    help="Datadog API key.",
+    type=str,
+    required=True,
+    show_envvar=True,
+)
+@click.option(
+    "--datadog-app-key",
+    help="Datadog APP key.",
+    type=str,
+    required=True,
+    show_envvar=True,
+)
+@click.option(
+    "--tags-query",
+    "-q",
+    help="Datadog tags query for querying the SLOs.",
+    type=str,
+    default="",
+    show_envvar=True,
+)
 @click.option(
     "--pretty/--no-pretty",
     "-p",
-    help="Pretty output",
+    help="Pretty output.",
     type=bool,
     is_flag=True,
     default=False,
@@ -37,7 +65,7 @@ def _filter_by_monitor(
 @click.option(
     "--debug/--no-debug",
     "-v",
-    help="Debug logging",
+    help="Debug logging.",
     type=bool,
     is_flag=True,
     default=False,
@@ -47,6 +75,7 @@ def main(
     monitor_id: int,
     datadog_api_key: str,
     datadog_app_key: str,
+    tags_query: str,
     pretty: bool,
     debug: bool,
 ) -> None:
@@ -64,7 +93,11 @@ def main(
         slo_client = ServiceLevelObjectivesApi(api_client=client)
 
     logger.debug("Getting all SLOs from Datadog")
-    slos: list[ServiceLevelObjective] = slo_client.list_slos()["data"]
+    slos: list[ServiceLevelObjective] = []
+    if len(tags_query):
+        slos = slo_client.list_slos(tags_query=tags_query)["data"]
+    else:
+        slos = slo_client.list_slos()["data"]
     logger.debug("Keeping all SLOs that have monitor with id '%s'", monitor_id)
     slos = _filter_by_monitor(slos, monitor_id)
 
