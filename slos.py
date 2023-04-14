@@ -20,6 +20,7 @@ def _filter_by_monitor(
 ) -> list[ServiceLevelObjective]:
     if monitor_id < 0:
         return slos
+    logger.debug("filtering SLOs by monitor ID '%s'", monitor_id)
     return list(filter(lambda slo: monitor_id in getattr(slo, "monitor_ids", []), slos))
 
 
@@ -98,7 +99,6 @@ def main(
         slos = slo_client.list_slos(tags_query=tags_query)["data"]
     else:
         slos = slo_client.list_slos()["data"]
-    logger.debug("Keeping all SLOs that have monitor with id '%s'", monitor_id)
     slos = _filter_by_monitor(slos, monitor_id)
 
     indent: Optional[int] = 2 if pretty else None
