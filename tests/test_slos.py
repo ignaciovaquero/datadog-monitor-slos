@@ -1,5 +1,5 @@
 import pytest
-from slos import _filter_by_monitor
+from slos import _filter_by_monitors
 
 from datadog_api_client.v1.api.service_level_objectives_api import ServiceLevelObjective
 from datadog_api_client.v1.model.slo_threshold import SLOThreshold
@@ -46,54 +46,61 @@ def _metric_slos(names: list[str]) -> list[ServiceLevelObjective]:
     "input, expected",
     [
         (
-            {"slos": _monitor_slos({"slo_1": [1, 2, 3]}), "monitor_id": -1},
+            {"slos": _monitor_slos({"slo_1": [1, 2, 3]}), "monitor_ids": ()},
             _monitor_slos({"slo_1": [1, 2, 3]}),
         ),
         (
-            {"slos": _monitor_slos({"slo_1": [1, 2, 3]}), "monitor_id": 4},
+            {"slos": _monitor_slos({"slo_1": [1, 2, 3]}), "monitor_ids": (4,)},
             [],
         ),
         (
-            {"slos": _monitor_slos({"slo_1": [1, 2, 3]}), "monitor_id": 1},
+            {"slos": _monitor_slos({"slo_1": [1, 2, 3]}), "monitor_ids": (1,)},
             _monitor_slos({"slo_1": [1, 2, 3]}),
         ),
         (
             {
                 "slos": _monitor_slos({"slo_1": [1, 2, 3], "slo_2": [2, 3]}),
-                "monitor_id": 1,
+                "monitor_ids": (1,),
             },
             _monitor_slos({"slo_1": [1, 2, 3]}),
         ),
         (
             {
                 "slos": _monitor_slos({"slo_1": [1, 2, 3], "slo_2": [2, 3]}),
-                "monitor_id": 2,
+                "monitor_ids": (2,),
+            },
+            _monitor_slos({"slo_1": [1, 2, 3], "slo_2": [2, 3]}),
+        ),
+        (
+            {
+                "slos": _monitor_slos({"slo_1": [1, 2, 3], "slo_2": [2, 3]}),
+                "monitor_ids": (1, 3),
             },
             _monitor_slos({"slo_1": [1, 2, 3], "slo_2": [2, 3]}),
         ),
         (
             {
                 "slos": _monitor_slos({"slo_1": [1, 2, 3], "slo_2": [2, 3, 4]}),
-                "monitor_id": 4,
+                "monitor_ids": (4,),
             },
             _monitor_slos({"slo_2": [2, 3, 4]}),
         ),
         (
             {
                 "slos": _metric_slos(["slo_1", "slo_2"]),
-                "monitor_id": 4,
+                "monitor_ids": (4,),
             },
             [],
         ),
         (
             {
                 "slos": _metric_slos(["slo_1", "slo_2"]),
-                "monitor_id": -1,
+                "monitor_ids": (),
             },
             _metric_slos(["slo_1", "slo_2"]),
         ),
     ],
 )
 def test_filter_by_monitor(input, expected):
-    got: list[ServiceLevelObjective] = _filter_by_monitor(**input)
+    got: list[ServiceLevelObjective] = _filter_by_monitors(**input)
     assert expected == got, f"expected: {expected}, got: {got}"

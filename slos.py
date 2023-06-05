@@ -15,22 +15,39 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def _filter_by_monitor(
-    slos: list[ServiceLevelObjective], monitor_id: int
+def _filter_by_monitors(
+    slos: list[ServiceLevelObjective], monitor_ids: tuple[int]
 ) -> list[ServiceLevelObjective]:
-    if monitor_id < 0:
+    if not monitor_ids:
         return slos
-    logger.debug("filtering SLOs by monitor ID '%s'", monitor_id)
-    return list(filter(lambda slo: monitor_id in getattr(slo, "monitor_ids", []), slos))
+    logger.debug("filtering SLOs by monitor IDs '%s'", monitor_ids)
+    monitor_ids_set = set(monitor_ids)
+    return list(
+        filter(
+            lambda slo: monitor_ids_set.intersection(
+                set(getattr(slo, "monitor_ids", []))
+            ),
+            slos,
+        )
+    )
 
 
 @click.command(context_settings={"auto_envvar_prefix": "SLOS", "show_default": True})
 @click.option(
-    "--monitor-id",
+    "--monitor-ids",
     "-m",
-    default=-1,
-    help="Monitor ID to get SLOs related. If not set, it returns all the SLOs found.",
+    multiple=True,
+    default=[],
+    help="Monitor IDs to get SLOs related. If not set, it returns all the SLOs found.",
     type=int,
+)
+@click.option(
+    "--slo-ids",
+    "-i",
+    multiple=True,
+    default=[],
+    help="Get only SLOs with IDs specified.",
+    type=str,
 )
 @click.option(
     "--datadog-api-key",
@@ -73,7 +90,8 @@ def _filter_by_monitor(
     show_envvar=True,
 )
 def main(
-    monitor_id: int,
+    monitor_ids: tuple[int],
+    slo_ids: tuple[str],
     datadog_api_key: str,
     datadog_app_key: str,
     tags_query: str,
@@ -95,11 +113,8 @@ def main(
 
     logger.debug("Getting all SLOs from Datadog")
     slos: list[ServiceLevelObjective] = []
-    if len(tags_query):
-        slos = slo_client.list_slos(tags_query=tags_query)["data"]
-    else:
-        slos = slo_client.list_slos()["data"]
-    slos = _filter_by_monitor(slos, monitor_id)
+    slos = slo_client.list_slos(ids=",".join(slo_ids), tags_query=tags_query)["data"]
+    slos = _filter_by_monitors(slos, monitor_ids)
 
     indent: Optional[int] = 2 if pretty else None
     logger.debug("Printing output")
